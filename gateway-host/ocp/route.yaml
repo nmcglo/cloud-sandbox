@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: gateway-host-route
+  labels:
+    app: gateway-host
+spec:
+  to:
+    kind: Service
+    name: gateway-host-svc
+  port:
+    targetPort: 3000

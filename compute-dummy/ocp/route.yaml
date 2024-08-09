@@ -1,0 +1,12 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: compute-dummy-route
+  labels:
+    app: compute-dummy
+spec:
+  to:
+    kind: Service
+    name: compute-dummy-svc
+  port:
+    targetPort: 8000

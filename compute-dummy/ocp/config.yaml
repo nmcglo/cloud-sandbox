@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compute-dummy-config
+  labels:
+    app: compute-dummy
+data:
+  RABBITMQ_SERVICE_HOSTNAME: rabbitmq.cloud-testing.svc.cluster.local

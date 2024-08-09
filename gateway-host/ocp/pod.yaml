@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gateway-host
+  labels:
+    app: gateway-host
+spec:
+  containers:
+  - name: gateway-host
+    image: gateway-host:latest
+    ports:
+    - containerPort: 3000

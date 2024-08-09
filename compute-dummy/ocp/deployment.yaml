@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compute-dummy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: compute-dummy
+  template:
+    metadata:
+      labels:
+        app: compute-dummy
+    spec:
+      containers:
+      - name: compute-dummy
+        image: compute-dummy:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: RABBITMQ_SERVICE_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: compute-dummy-config
+              key: RABBITMQ_SERVICE_HOSTNAME
+

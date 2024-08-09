@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: compute-dummy
+  labels:
+    app: compute-dummy
+spec:
+  containers:
+  - name: compute-dummy
+    image: compute-dummy:latest
+    ports:
+    - containerPort: 8000
