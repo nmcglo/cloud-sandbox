@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+import redis
 from redis import Redis
 import json
 import logging
@@ -17,12 +18,12 @@ class SchedulerAPI:
         self._initialize_processors()
 
     def _initialize_processors(self):
-        # Ensure next_task_id exists in Redis
-        if not self.redis_client.exists('next_task_id'):
-            self.redis_client.set('next_task_id', 0)
+        # Ensure scheduler:next_task_id exists in Redis
+        if not self.redis_client.exists('scheduler:next_task_id'):
+            self.redis_client.set('scheduler:next_task_id', 0)
         # Initialize sorted sets for each processor with an empty task
         for i in range(self.num_processors):
-            key = f"processor:{i}"
+            key = f"scheduler:processor_queue:{i}"
             if not self.redis_client.exists(key):
                 self.redis_client.zadd(key, {json.dumps({"task_id": -1, "start_time": 0, "end_time": 0}): 0})  # Initialize as an empty sorted set
 
@@ -31,7 +32,7 @@ class SchedulerAPI:
         best_processor = None
 
         for i in range(self.num_processors):
-            key = f"processor:{i}"
+            key = f"scheduler:processor_queue:{i}"
             busy_intervals = self.redis_client.zrange(key, 0, -1, withscores=True)
             last_end_time = 0
             for task_json, _ in busy_intervals:
@@ -59,29 +60,33 @@ class SchedulerAPI:
         return best_processor, best_start_time
 
     def schedule_task(self, duration: int):
-        with self.redis_client.pipeline() as pipeline:
-            pipeline.watch('next_task_id')
-            task_id = int(self.redis_client.get('next_task_id') or 0)
-            processor, start_time = self._find_earliest_start(duration)
+        while True:
+            with self.redis_client.pipeline() as pipeline:
+                try:
+                    pipeline.watch('scheduler:next_task_id') #watch next task ID, if it changes then we need to retry
+                    task_id = int(self.redis_client.get('scheduler:next_task_id') or 0)
+                    processor, start_time = self._find_earliest_start(duration)
 
-            if processor is None:
-                pipeline.unwatch()
-                raise HTTPException(status_code=400, detail="No available slot found")
+                    if processor is None:
+                        pipeline.unwatch()
+                        raise HTTPException(status_code=400, detail="No available slot found")
 
-            task = {
-                "task_id": task_id,
-                "start_time": start_time,
-                "end_time": start_time + duration
-            }
+                    task = {
+                        "task_id": task_id,
+                        "start_time": start_time,
+                        "end_time": start_time + duration
+                    }
 
-            key = f"processor:{processor}"
+                    key = f"scheduler:processor_queue:{processor}"
 
-            pipeline.multi()
-            pipeline.zadd(key, {json.dumps(task): task['start_time']})  # Score is the start time
-            pipeline.incr('next_task_id')
-            pipeline.execute()
+                    pipeline.multi()
+                    pipeline.zadd(key, {json.dumps(task): task['start_time']})  # Score is the start time
+                    pipeline.incr('scheduler:next_task_id')
+                    pipeline.execute()
 
-            return task_id, processor, start_time
+                    return task_id, processor, start_time
+                except redis.WatchError:
+                    continue
 
 scheduler_api = SchedulerAPI(redis_client, num_processors=4)
 
