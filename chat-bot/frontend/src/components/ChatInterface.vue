@@ -44,9 +44,19 @@ export default {
       this.messages.push({ role: 'user', content: this.prompt });
 
       try {
-        const response = await axios.post('http://localhost:3000/generate', {
-          prompt: this.prompt,
-        });
+        const requestOptions = {
+          method: 'POST',
+          url: 'http://localhost:3000/generate',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `bearer testtoken`,
+          },
+          data: {
+            prompt: this.prompt,
+          },
+        };
+
+        const response = await axios.request(requestOptions);
 
         // Add bot's response to chat
         this.messages.push({ role: 'bot', content: response.data.randomSentence });
